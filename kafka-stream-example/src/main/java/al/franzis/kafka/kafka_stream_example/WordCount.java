@@ -20,7 +20,7 @@ import java.util.Properties;
  * Hello world!
  *
  */
-public class App {
+public class WordCount {
 	
 	public static void main(String[] args) {
 		Properties props = new Properties();
@@ -35,7 +35,7 @@ public class App {
 
 		KStreamBuilder builder = new KStreamBuilder();
 
-		KStream<String, String> source = builder.stream("streams-file-input");
+		KStream<String, String> source = builder.stream(Constants.STRING_FILE_INPUT_TOPIC);
 
 		KTable<String, Long> counts = source.flatMapValues(new ValueMapper<String, Iterable<String>>() {
 			@Override
