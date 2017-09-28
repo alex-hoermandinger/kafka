@@ -20,13 +20,12 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka_2.11</artifactId>
-      <!-- For CP 3.1.1 -->
-      <version>0.10.1.0-cp2</version>
+      <version>0.11.0.1</version>
     </dependency>
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka-streams</artifactId>
-      <version>0.10.1.1</version>
+      <version>0.11.0.1</version>
     </dependency>
     <dependency>
       <groupId>junit</groupId>

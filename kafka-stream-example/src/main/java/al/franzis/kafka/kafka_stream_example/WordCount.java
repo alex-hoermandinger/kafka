@@ -50,7 +50,7 @@ public class WordCount {
 		}).groupByKey().count("Counts");
 
 		// need to override value serde to Long type
-		counts.to(Serdes.String(), Serdes.Long(), "streams-wordcount-output");
+		counts.to(Serdes.String(), Serdes.Long(), Constants.STREAMS_WORDCOUNT_OUTPUT_TOPIC);
 
 		KafkaStreams streams = new KafkaStreams(builder, props);
 		streams.start();

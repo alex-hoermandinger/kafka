@@ -1,5 +1,7 @@
 package al.franzis.kafka.kafka_stream_example;
 
+import static java.lang.String.format;
+
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collection;
@@ -17,7 +19,7 @@ import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 
 
 public class ConsumerApp {
-
+    private final static int NR_CONSUME_RECORDS = 10_000000;
 	
 	public static void main(String[] args) {
 		Properties props = new Properties();
@@ -28,7 +30,7 @@ public class ConsumerApp {
 		props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 		props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 		
-//		props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+		props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 		
 		
 		KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
@@ -42,14 +44,23 @@ public class ConsumerApp {
 		//}
 		
 		SimpleDateFormat dateFormat = new SimpleDateFormat();
-		while (true) {
+		int consumedRecords = 0;
+		
+		long start = System.currentTimeMillis();
+		while ( consumedRecords < NR_CONSUME_RECORDS ) {
 			ConsumerRecords<String, String> records = consumer.poll(100);
 			for (ConsumerRecord<String, String> record : records)
 			{
 				Date tsDate = new Date( record.timestamp() );
-				System.out.printf("offset = %d, timestamp= %s, key = %s, value = %s%n", record.offset(), dateFormat.format(tsDate), record.key(), record.value());
+				String key = record.key();
+				String value = record.value();
+				String append = key + value;
+//				System.out.printf("offset = %d, timestamp= %s, key = %s, value = %s%n", record.offset(), dateFormat.format(tsDate), record.key(), record.value());
+				consumedRecords++;
 			}
 		}
+		long duration = System.currentTimeMillis() - start;
+		System.out.println( format( "Consumed %d records, total time %dms", consumedRecords, duration ) );
 	}
 	
 	private static class RebalanceListener implements ConsumerRebalanceListener {
