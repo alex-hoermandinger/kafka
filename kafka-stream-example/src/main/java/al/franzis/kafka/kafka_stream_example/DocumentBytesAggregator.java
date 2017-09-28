@@ -14,6 +14,8 @@ import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KStreamBuilder;
 import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.kstream.KeyValueMapper;
+import org.apache.kafka.streams.kstream.TimeWindows;
+import org.apache.kafka.streams.kstream.Windowed;
 
 /**
  * Hello world!
@@ -51,14 +53,16 @@ public class DocumentBytesAggregator {
             }
         } );
         
-        KTable<String,Long> ssg2AggregatedBytesTable = ssg2BytesStream.groupByKey().aggregate( 
+        KTable<Windowed<String>,Long> ssg2AggregatedBytesTable = ssg2BytesStream.groupByKey().aggregate( 
                 () -> 0L, 
                 (aggKey, aggValue, aggregate) ->(Long)(aggregate + aggValue),
-             //   TimeWindows.of( 3000 ),
+                TimeWindows.of( 3000 ),
                 Serdes.Long() );
        
         // need to override value serde to Long type
-        ssg2AggregatedBytesTable.to( Serdes.String(), Serdes.Long(), Constants.REPOSITORY_BYTES_STORE_TOPIC );
+//        ssg2AggregatedBytesTable.to( Constants.REPOSITORY_BYTES_STORE_TOPIC );
+        
+        ssg2AggregatedBytesTable.toStream( (wk, v) -> wk.key() ).to( Constants.REPOSITORY_BYTES_STORE_TOPIC );
         
         KafkaStreams streams = new KafkaStreams( builder, props );
         streams.start();
