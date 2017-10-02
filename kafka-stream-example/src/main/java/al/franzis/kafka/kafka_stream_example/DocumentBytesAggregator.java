@@ -3,6 +3,8 @@ package al.franzis.kafka.kafka_stream_example;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Properties;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -16,12 +18,18 @@ import org.apache.kafka.streams.kstream.KTable;
 import org.apache.kafka.streams.kstream.KeyValueMapper;
 import org.apache.kafka.streams.kstream.TimeWindows;
 import org.apache.kafka.streams.kstream.Windowed;
+import org.apache.kafka.streams.state.QueryableStoreTypes;
+import org.apache.kafka.streams.state.ReadOnlyWindowStore;
+import org.apache.kafka.streams.state.WindowStoreIterator;
 
 /**
  * Hello world!
  *
  */
 public class DocumentBytesAggregator {
+	private static final long WINDOW_SIZE_MS = 120_000;
+	private static final SimpleDateFormat dateFormat = new SimpleDateFormat( "yyyy-MM-dd HH:mm:ss.SSS" );
+	
 	
     public static void main( String[] args )
     {
@@ -55,14 +63,19 @@ public class DocumentBytesAggregator {
         
         KTable<Windowed<String>,Long> ssg2AggregatedBytesTable = ssg2BytesStream.groupByKey().aggregate( 
                 () -> 0L, 
-                (aggKey, aggValue, aggregate) ->(Long)(aggregate + aggValue),
-                TimeWindows.of( 3000 ),
-                Serdes.Long() );
-       
-        // need to override value serde to Long type
-//        ssg2AggregatedBytesTable.to( Constants.REPOSITORY_BYTES_STORE_TOPIC );
+                (aggKey, aggValue, aggregate) -> aggregate + aggValue,
+                TimeWindows.of( WINDOW_SIZE_MS ),
+                Serdes.Long(),
+                "ssg2AggregatedBytesTable");
         
-        ssg2AggregatedBytesTable.toStream( (wk, v) -> wk.key() ).to( Constants.REPOSITORY_BYTES_STORE_TOPIC );
+        
+        ssg2AggregatedBytesTable.toStream( 
+        		(wk, v) -> {
+        			String start = dateFormat.format(new Date( wk.window().start() ) );
+        			String end = dateFormat.format(new Date( wk.window().end() ) );
+        			return wk.key() + "[" + start + "-" + end + "]" ;
+        		} )
+        	.to( Constants.REPOSITORY_BYTES_STORE_TOPIC );
         
         KafkaStreams streams = new KafkaStreams( builder, props );
         streams.start();
@@ -77,7 +90,23 @@ public class DocumentBytesAggregator {
                 if ( "q".equals( input ) )
                 {
                     System.out.println( "Exit!" );
+                    streams.close();
                     System.exit( 0 );
+                } else if (input.startsWith("p") )
+                {
+                	String ssgID = input.split(" ")[1];
+                	
+                	ReadOnlyWindowStore<String, Long> windowStore =
+                		    streams.store("ssg2AggregatedBytesTable", QueryableStoreTypes.windowStore());
+                	long timeFrom = 0; // beginning of time = oldest available
+                	long timeTo = System.currentTimeMillis(); // now (in processing-time)
+                	WindowStoreIterator<Long> iterator = windowStore.fetch( ssgID, timeFrom, timeTo);
+                	while (iterator.hasNext()) {
+                	  KeyValue<Long, Long> next = iterator.next();
+                	  long windowTimestamp = next.key;
+                	  String start = dateFormat.format(new Date( windowTimestamp ) );
+                	  System.out.println("Aggregated Bytes stored for SSG '" + ssgID + "': window-start: " + start + ", bytes: " + next.value);
+                	}
                 }
             }
             
@@ -86,7 +115,5 @@ public class DocumentBytesAggregator {
         {
             e.printStackTrace();
         }
-        
-        streams.close();
     }
 }
